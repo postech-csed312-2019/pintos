@@ -36,4 +36,4 @@ Refer to [here](https://github.com/ivogeorg/os-playground/blob/master/pintos-wit
 
 
 ## git webhook test
-thanks to imnotkind >_<
+thanks to imnotkind >_< :)
