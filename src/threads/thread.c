@@ -25,6 +25,9 @@
 static struct list ready_list;
 struct list sleep_list;
 
+// A list of sleeping threads. Used at thread_sleep.
+static struct list sleep_list;
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -93,7 +96,10 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&sleep_list);
+<<<<<<< HEAD
   printf("head: %p, head->next: %p \n", sleep_list.head, sleep_list.head.next);
+=======
+>>>>>>> 96b8a3833bd3ca4c73cc4c6602c3e8f354a70003
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -126,6 +132,7 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
+<<<<<<< HEAD
   printf("thread_tick\n");
 
   for (struct list_elem* elem = list_begin(&sleep_list); elem != list_end(&sleep_list); ) {
@@ -140,6 +147,8 @@ thread_tick (void)
     else elem = elem->next;
   }
 
+=======
+>>>>>>> 96b8a3833bd3ca4c73cc4c6602c3e8f354a70003
   /* Update statistics. */
   if (t == idle_thread)
     idle_ticks++;
@@ -149,6 +158,21 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
+
+  printf("thread_tick\n");
+  for (struct list_elem* elem = list_begin(&sleep_list); elem != list_end(&sleep_list); ) {
+    struct thread* tr = list_entry(elem, struct thread, elem);
+    tr->blocked_ticks--;
+    printf("remaining ticks: %u\n", tr->blocked_ticks);
+    if (tr->blocked_ticks == 0) {
+      struct list_elem* next = list_remove(elem);
+      list_push_back(&ready_list, elem);
+      elem = next;
+    }
+    else {
+      elem = elem->next;
+    }
+  }
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -328,6 +352,27 @@ thread_yield (void)
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
+}
+
+/*
+  Make the thread sleep and put it in the sleep_list.
+  After that, schedule another thread.
+*/
+void
+thread_sleep (int64_t ticks)
+{
+  struct thread* t = thread_current();
+  ASSERT (t != idle_thread);
+  printf("<thread_sleep>\n");
+  list_remove(&t->elem);
+
+  printf("thread sleep start");
+  t->blocked_ticks = ticks + 1;
+  t->status = THREAD_BLOCKED;
+  list_push_back(&sleep_list, &t->elem);
+  schedule();
+  printf("thread sleep done");
+  return;
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
