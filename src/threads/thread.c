@@ -23,13 +23,14 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+struct list sleep_list;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
 /* Idle thread. */
-static struct thread *idle_thread;
+struct thread *idle_thread;
 
 /* Initial thread, the thread running init.c:main(). */
 static struct thread *initial_thread;
@@ -91,6 +92,8 @@ thread_init (void)
 
   lock_init (&tid_lock);
   list_init (&ready_list);
+  list_init (&sleep_list);
+  printf("head: %p, head->next: %p \n", sleep_list.head, sleep_list.head.next);
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -123,6 +126,19 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
+  printf("thread_tick\n");
+
+  for (struct list_elem* elem = list_begin(&sleep_list); elem != list_end(&sleep_list); ) {
+    struct thread* tr = list_entry(elem, struct thread, elem);
+    tr->sleep_ticks--;
+    printf("remaining ticks: %u\n", tr->sleep_ticks);
+    if (tr->sleep_ticks == 0) {
+      struct list_elem* next = list_remove(elem);
+      list_push_back(&ready_list, elem);
+      elem = next;
+    }
+    else elem = elem->next;
+  }
 
   /* Update statistics. */
   if (t == idle_thread)
@@ -462,6 +478,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->sleep_ticks = 0;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();

@@ -30,6 +30,10 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+// timer_sleep
+extern struct list sleep_list;
+extern struct thread* idle_thread;
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -89,12 +93,20 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
-  printf("hihi");
-
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  printf("<timer sleep>\n");
+  struct thread* t = thread_current();
+  ASSERT (t != idle_thread);
+  list_remove(&t->elem);
+
+  printf("b");
+  t->sleep_ticks = ticks;
+  printf("head: %p, head->next: %p \n", sleep_list.head, sleep_list.head.next);
+  list_push_back(&sleep_list, &t->elem);
+  t->status = THREAD_BLOCKED;
+  schedule();
+  printf("a");
+  return;
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
