@@ -23,7 +23,6 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
-struct list sleep_list;
 
 // A list of sleeping threads. Used at thread_sleep.
 static struct list sleep_list;
@@ -96,10 +95,6 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&sleep_list);
-<<<<<<< HEAD
-  printf("head: %p, head->next: %p \n", sleep_list.head, sleep_list.head.next);
-=======
->>>>>>> 96b8a3833bd3ca4c73cc4c6602c3e8f354a70003
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -124,6 +119,7 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
+  printf("idle: %p\n", idle_thread);
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -132,23 +128,8 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
-<<<<<<< HEAD
-  printf("thread_tick\n");
+  //printf("\ncurrent thread: %p\n", t);
 
-  for (struct list_elem* elem = list_begin(&sleep_list); elem != list_end(&sleep_list); ) {
-    struct thread* tr = list_entry(elem, struct thread, elem);
-    tr->sleep_ticks--;
-    printf("remaining ticks: %u\n", tr->sleep_ticks);
-    if (tr->sleep_ticks == 0) {
-      struct list_elem* next = list_remove(elem);
-      list_push_back(&ready_list, elem);
-      elem = next;
-    }
-    else elem = elem->next;
-  }
-
-=======
->>>>>>> 96b8a3833bd3ca4c73cc4c6602c3e8f354a70003
   /* Update statistics. */
   if (t == idle_thread)
     idle_ticks++;
@@ -159,20 +140,24 @@ thread_tick (void)
   else
     kernel_ticks++;
 
-  printf("thread_tick\n");
-  for (struct list_elem* elem = list_begin(&sleep_list); elem != list_end(&sleep_list); ) {
-    struct thread* tr = list_entry(elem, struct thread, elem);
+  //printf("\n<thread_tick>\n");
+  int n = 0;
+  for (struct list_elem* e = list_begin(&sleep_list); e != list_end(&sleep_list); ) {
+    n++;
+    struct thread* tr = list_entry(e, struct thread, elem);
     tr->blocked_ticks--;
-    printf("remaining ticks: %u\n", tr->blocked_ticks);
+    //printf("remaining ticks: %u\n", tr->blocked_ticks);
     if (tr->blocked_ticks == 0) {
-      struct list_elem* next = list_remove(elem);
-      list_push_back(&ready_list, elem);
-      elem = next;
+      struct list_elem* next = list_remove(e);
+      tr->status = THREAD_READY;
+      list_push_back(&ready_list, e);
+      e = next;
     }
     else {
-      elem = elem->next;
+      e = e->next;
     }
   }
+  //printf("[threads in sleep list: %d]\n", n);
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -363,15 +348,18 @@ thread_sleep (int64_t ticks)
 {
   struct thread* t = thread_current();
   ASSERT (t != idle_thread);
-  printf("<thread_sleep>\n");
-  list_remove(&t->elem);
+  ASSERT (intr_get_level () == INTR_ON);
+  intr_disable ();
+  //printf("\n<thread_sleep>\n");
+  //list_remove(&t->elem);
 
-  printf("thread sleep start");
-  t->blocked_ticks = ticks + 1;
+  //printf("thread sleep start\n");
+  t->blocked_ticks = ticks;
   t->status = THREAD_BLOCKED;
   list_push_back(&sleep_list, &t->elem);
   schedule();
-  printf("thread sleep done");
+  //printf("thread sleep done\n");
+  intr_set_level(INTR_ON);
   return;
 }
 
@@ -612,7 +600,7 @@ thread_schedule_tail (struct thread *prev)
    It's not safe to call printf() until thread_schedule_tail()
    has completed. */
 static void
-schedule (void) 
+schedule (void)
 {
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
