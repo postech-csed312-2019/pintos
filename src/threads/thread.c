@@ -109,17 +109,19 @@ thread_init (void)
 void
 thread_start (void) 
 {
+  //printf("[thread_start]\n");
   /* Create the idle thread. */
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
+  //printf("[idle created]\n");
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
-  printf("idle: %p\n", idle_thread);
+  //printf("idle: %p\n", idle_thread);
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -128,7 +130,6 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
-  //printf("\ncurrent thread: %p\n", t);
 
   /* Update statistics. */
   if (t == idle_thread)
@@ -140,28 +141,20 @@ thread_tick (void)
   else
     kernel_ticks++;
 
-  //printf("\n<thread_tick>\n");
-  int n = 0;
+  //printf("<timer tick>\n");
   for (struct list_elem* e = list_begin(&sleep_list); e != list_end(&sleep_list); ) {
-    n++;
     struct thread* tr = list_entry(e, struct thread, elem);
     tr->blocked_ticks--;
-    //printf("remaining ticks: %u\n", tr->blocked_ticks);
     if (tr->blocked_ticks == 0) {
       struct list_elem* next = list_remove(e);
+      thread_insert_by_priority(&ready_list, tr);
       tr->status = THREAD_READY;
-      list_push_back(&ready_list, e);
       e = next;
     }
     else {
       e = e->next;
     }
   }
-  //printf("[threads in sleep list: %d]\n", n);
-
-  /* Enforce preemption. */
-  if (++thread_ticks >= TIME_SLICE)
-    intr_yield_on_return ();
 }
 
 /* Prints thread statistics. */
@@ -261,9 +254,13 @@ thread_unblock (struct thread *t)
   ASSERT (is_thread (t));
 
   old_level = intr_disable ();
+  //printf("thread_unblock\n");
+
+  // insert a thread to the ready_list in descending order of priority
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  thread_insert_by_priority(&ready_list, t);
   t->status = THREAD_READY;
+
   intr_set_level (old_level);
 }
 
@@ -349,7 +346,7 @@ thread_sleep (int64_t ticks)
   struct thread* t = thread_current();
   ASSERT (t != idle_thread);
   ASSERT (intr_get_level () == INTR_ON);
-  intr_disable ();
+  enum thread_status old = intr_disable ();
   //printf("\n<thread_sleep>\n");
   //list_remove(&t->elem);
 
@@ -359,7 +356,7 @@ thread_sleep (int64_t ticks)
   list_push_back(&sleep_list, &t->elem);
   schedule();
   //printf("thread sleep done\n");
-  intr_set_level(INTR_ON);
+  intr_set_level(old);
   return;
 }
 
@@ -495,7 +492,7 @@ is_thread (struct thread *t)
   return t != NULL && t->magic == THREAD_MAGIC;
 }
 
-/* Does basic initialization of T as a blocked thread named
+/* Does 'basic initialization' of T as a blocked thread named
    NAME. */
 static void
 init_thread (struct thread *t, const char *name, int priority)
@@ -632,3 +629,24 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+// insert a thread in ascending/descending order
+// interrupt must be turned off
+void
+thread_insert_by_priority(struct list* _list, struct thread* t)
+{
+  //printf("insert start\n");
+  ASSERT(intr_get_level() == INTR_OFF);
+  //printf("assertion done\n");
+
+  struct list_elem* e;
+  for (e = list_begin(_list); e != list_end(_list); e = e->next) {
+    struct thread* tr = list_entry(e, struct thread, elem);
+    if (t->priority > tr->priority) {
+      break;
+    }
+  }
+  //printf("traversal done\n");
+
+  list_insert(e, &t->elem);
+}
