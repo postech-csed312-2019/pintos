@@ -397,14 +397,23 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  struct thread* t = thread_current();
+  enum intr_level old_level = intr_disable();
+
+  t->priority = new_priority;
+  t->effective_priority = new_priority;
+  t->status = THREAD_READY;
+  thread_insert_by_priority(&ready_list, t);
+  schedule();
+
+  intr_set_level(old_level);
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  return thread_current ()->effective_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -526,8 +535,9 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  t->sleep_ticks = 0;
+  t->effective_priority = priority;
   t->magic = THREAD_MAGIC;
+  list_init(&t->donors);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -660,11 +670,20 @@ thread_insert_by_priority(struct list* _list, struct thread* t)
   struct list_elem* e;
   for (e = list_begin(_list); e != list_end(_list); e = e->next) {
     struct thread* tr = list_entry(e, struct thread, elem);
-    if (t->priority > tr->priority) {
+    if (t->effective_priority > tr->effective_priority) {
       break;
     }
   }
   //printf("traversal done\n");
 
   list_insert(e, &t->elem);
+}
+
+void
+thread_donate_priority(struct thread* donor, struct thread* recipient)
+{
+  enum intr_level old_level = intr_disable();
+
+  list_push_back(&recipient->donors, &donor->elem_donors);
+
 }
