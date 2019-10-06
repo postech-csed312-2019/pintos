@@ -145,5 +145,7 @@ int thread_get_load_avg (void);
 
 void thread_insert_by_priority(struct list* _list, struct thread* t);
 void thread_donate_priority(struct thread* donor, struct thread* recipient);
+void thread_reset_priority(void);
+bool thread_is_donor (struct thread* cand, struct thread* recipient);
 
 #endif /* threads/thread.h */

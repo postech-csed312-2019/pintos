@@ -397,14 +397,26 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  struct thread* t = thread_current();
+  struct thread* cur = thread_current();
   enum intr_level old_level = intr_disable();
 
-  t->priority = new_priority;
-  t->effective_priority = new_priority;
-  t->status = THREAD_READY;
-  thread_insert_by_priority(&ready_list, t);
-  schedule();
+  // not donated
+  if (list_empty(&cur->donors)) {
+    int old_priority = cur->priority;
+    cur->priority = new_priority;
+    cur->effective_priority = new_priority;
+    if (new_priority < old_priority) {
+      thread_yield();
+    }
+  }
+
+  // donated
+  else {
+    cur->priority = new_priority;
+    if (new_priority > cur->effective_priority) {
+      cur->effective_priority = new_priority;
+    }
+  }
 
   intr_set_level(old_level);
 }
@@ -679,11 +691,70 @@ thread_insert_by_priority(struct list* _list, struct thread* t)
   list_insert(e, &t->elem);
 }
 
+/*
+void
+thread_return_priority(struct thread* donor, struct thread* recipient)
+{
+  ASSERT(intr_get_level() == INTR_OFF);
+
+  list_remove(&donor->elem_donors);
+  if (recipient->effective_priority > donor->effective_priority) return;
+  if (list_empty(&recipient->donors)) {
+    recipient->effective_priority = recipient->priority;
+    return;
+  }
+
+  int max_priority = -1;
+  for (struct list_elem* e = list_begin(&recipient->donors); e != list_end(&recipient->donors); e = e->next) {
+    struct thread* waiter = list_entry(e, struct thread, elem_donors);
+    if (waiter->effective_priority > max_priority)
+      max_priority = waiter->effective_priority;
+  }
+  recipient->effective_priority = max_priority;
+}
+*/
+
 void
 thread_donate_priority(struct thread* donor, struct thread* recipient)
 {
-  enum intr_level old_level = intr_disable();
+  ASSERT(intr_get_level() == INTR_OFF);
+  ASSERT(recipient->effective_priority < donor->effective_priority);
+  //enum intr_level old_level = intr_disable();
 
   list_push_back(&recipient->donors, &donor->elem_donors);
+  
+  recipient->effective_priority = donor->effective_priority;
+  
+  if (recipient->status == THREAD_READY) {
+    list_remove(&recipient->elem);
+    thread_insert_by_priority(&ready_list, recipient);
+  }
 
+  //intr_set_level(old_level);
+}
+
+void 
+thread_reset_priority()
+{
+  ASSERT(intr_get_level() == INTR_OFF);
+
+  struct thread* cur = thread_current();
+
+  int max_priority = cur->priority;
+  for (struct list_elem* e = list_begin(&cur->donors); e != list_end(&cur->donors); e = e->next) {
+    struct thread* t = list_entry(e, struct thread, elem_donors);
+    if (t->effective_priority > max_priority)
+      max_priority = t->effective_priority;
+  }
+
+  cur->effective_priority = max_priority;
+}
+
+bool
+thread_is_donor (struct thread* cand, struct thread* recipient)
+{
+  for (struct list_elem* e = list_begin(&recipient->donors); e != list_end(&recipient->donors); e = e->next) {
+    if (list_entry(e, struct thread, elem_donors) == cand) return true;
+  }
+  return false;
 }
