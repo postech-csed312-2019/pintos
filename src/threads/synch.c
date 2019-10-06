@@ -351,9 +351,22 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
-    sema_up (&list_entry (list_pop_front (&cond->waiters),
-                          struct semaphore_elem, elem)->semaphore);
+  if (!list_empty (&cond->waiters)) {
+    struct list_elem* waiter;
+    int max_priority = -1;
+    for (struct list_elem* e = list_begin(&cond->waiters); e != list_end(&cond->waiters); e = e->next) {
+      struct semaphore* sema = &list_entry(e, struct semaphore_elem, elem)->semaphore;
+      struct thread* t = list_entry(list_begin(&sema->waiters), struct thread, elem);
+      if (t->effective_priority > max_priority) {
+        max_priority = t->effective_priority;
+        waiter = e;
+      }
+    }
+    //struct list_elem* waiter = list_pop_front(&cond->waiters);
+    struct semaphore_elem* sema_elem = list_entry(waiter, struct semaphore_elem, elem);
+    list_remove(waiter);
+    sema_up(&sema_elem->semaphore);
+  }
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
