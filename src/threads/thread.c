@@ -721,11 +721,19 @@ thread_donate_priority(struct thread* donor, struct thread* recipient)
   ASSERT(recipient->effective_priority < donor->effective_priority);
   //enum intr_level old_level = intr_disable();
 
-  list_push_back(&recipient->donors, &donor->elem_donors);
+  if (!thread_is_donor(donor, recipient)) 
+    list_push_back(&recipient->donors, &donor->elem_donors);
   
   recipient->effective_priority = donor->effective_priority;
   
+  // TODO: merge the two below
+
   if (recipient->status == THREAD_READY) {
+    list_remove(&recipient->elem);
+    thread_insert_by_priority(&ready_list, recipient);
+  }
+
+  else if (recipient->status == THREAD_BLOCKED) {
     list_remove(&recipient->elem);
     thread_insert_by_priority(&ready_list, recipient);
   }
@@ -737,6 +745,7 @@ void
 thread_reset_priority()
 {
   ASSERT(intr_get_level() == INTR_OFF);
+  //printf("[thread_reset_priority] called \n");
 
   struct thread* cur = thread_current();
 
@@ -753,6 +762,7 @@ thread_reset_priority()
 bool
 thread_is_donor (struct thread* cand, struct thread* recipient)
 {
+  ASSERT(cand != NULL && recipient != NULL);
   for (struct list_elem* e = list_begin(&recipient->donors); e != list_end(&recipient->donors); e = e->next) {
     if (list_entry(e, struct thread, elem_donors) == cand) return true;
   }

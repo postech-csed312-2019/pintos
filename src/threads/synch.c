@@ -228,7 +228,6 @@ lock_acquire (struct lock *lock)
     if (cur->effective_priority > lock->holder->effective_priority)
       thread_donate_priority(cur, lock->holder); 
     thread_block();
-    list_remove(&cur->elem);
   }
 
   lock->holder = thread_current ();
