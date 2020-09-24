@@ -26,5 +26,5 @@ $ sudo apt-get install binutils pkg-config zlib1g-dev libglib2.0-dev gcc libc6-d
 
 Add the following to the bottom of your ~/.bashrc file:
 ```sh
-export PATH="$PATH:/home/pintos/pintos/src/utils"
+export PATH="$PATH:~/pintos/src/utils"
 ```
