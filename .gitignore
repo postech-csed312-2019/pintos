@@ -7,4 +7,6 @@ src/misc/
 src/utils/
 
 .idea/
+.DS_Store
+./DS_Store
 

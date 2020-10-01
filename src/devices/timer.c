@@ -89,11 +89,20 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
+/* === DEL START Jinho q1 === */
+//    int64_t start = timer_ticks ();
+//
+//    ASSERT (intr_get_level () == INTR_ON);
+//    while (timer_elapsed (start) < ticks)
+//        thread_yield ();
+/* === DEL END Jinho q1 === */
 
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+    /* === ADD START jinho q1 ===*/
+    // TODO timer_sleep ok
+    ASSERT (intr_get_level () == INTR_ON);
+    thread_sleep(ticks);
+    /* === ADD END jinho q1 ===*/
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -163,7 +172,7 @@ timer_ndelay (int64_t ns)
 void
 timer_print_stats (void) 
 {
-  printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
+  printf ("Timer: %lld ticks\n", timer_ticks ());
 }
 
 /* Timer interrupt handler. */
@@ -172,6 +181,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+    /* === ADD START jinho q1 ===*/
+    // TODO timer_interrupt ok
+    thread_awake();
+    /* === ADD END jinho q1 ===*/
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

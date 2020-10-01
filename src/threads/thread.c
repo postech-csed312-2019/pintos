@@ -11,6 +11,12 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+
+/* === ADD START jinho q1 ===*/
+// TODO include timer.h ok
+#include "devices/timer.h"
+/* === ADD END jinho q1 ===*/
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -27,6 +33,11 @@ static struct list ready_list;
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
+
+/* === ADD START jinho q1 ===*/
+// TODO static sleep_list ok
+static struct list sleep_list;
+/* === ADD END jinho q1 ===*/
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -93,11 +104,20 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+    /* === ADD START jinho q1 ===*/
+    // TODO thread_init ok
+    list_init( &sleep_list );
+
+    /* === ADD END jinho q1 ===*/
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+
+
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -314,6 +334,68 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
+/* === ADD START jinho q1 ===*/
+
+// NOTE : is run by user thread
+void thread_sleep(int64_t ticks){
+    // TODO thread_sleep ok
+    enum intr_level old_level;
+    int64_t curTime = timer_ticks();
+    struct thread* curThread = thread_current();
+
+    // handle invariants
+    if(ticks==0) return;
+    ASSERT( ticks != 0 );
+
+    curThread->wakeUpTick = curTime + ticks;
+    ASSERT( curThread->wakeUpTick - ticks == curTime );
+
+    old_level = intr_disable ();
+    if (curThread != idle_thread) {
+        list_insert_ordered( &sleep_list, &(curThread->sleep_elem), &compareThreadWakeUpTick, NULL );
+    }
+    thread_block();
+    intr_set_level (old_level);
+}
+
+// NOTE : is run by kernel thread when interrupt is raised.
+void thread_awake() {
+    // TODO thread_awake ok
+    int64_t curTime = timer_ticks();
+    enum intr_level old_level;
+    struct thread* targetThread;
+
+    int a  =0;
+    while( 1 ){
+        //condition
+        if( list_size(&sleep_list) == 0) { break; }
+        targetThread = list_entry(list_front(&sleep_list), struct thread, sleep_elem);
+        ASSERT( targetThread != NULL);
+        if( !(targetThread->wakeUpTick <= curTime) ){ break; }
+
+        // body
+        old_level = intr_disable();
+        targetThread = list_entry( list_pop_front(&sleep_list), struct thread, sleep_elem);
+        ASSERT( targetThread != NULL);
+
+        thread_unblock( targetThread );
+        intr_set_level (old_level);
+    }
+}
+
+bool compareThreadWakeUpTick(struct list_elem* e1, struct list_elem* e2, void* aux){
+    // TODO compareThreadWakeUpTick ok
+    struct thread *t1 = list_entry(e1, struct thread, sleep_elem);
+    struct thread *t2 = list_entry(e2, struct thread, sleep_elem);
+    ASSERT(t1 != NULL || t2 != NULL);
+
+    // Designed to align small element at first.
+    return t1->wakeUpTick < t2->wakeUpTick ;
+
+}
+/* === ADD END jinho q1 ===*/
+
+
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
 void
@@ -464,9 +546,18 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+    /* === ADD START jinho ===*/
+    // TODO init_thread ok
+    t->wakeUpTick = 0;
+
+    /* === ADD END jinho ===*/
+
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
+
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -578,7 +669,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
