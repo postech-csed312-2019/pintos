@@ -5,3 +5,6 @@ src/tests/
 src/examples/
 src/misc/
 src/utils/
+
+.idea/
+
