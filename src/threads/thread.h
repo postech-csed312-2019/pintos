@@ -93,8 +93,7 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    /* === ADD START jinho ===*/
-    // TODO struct thread header ok
+    /* === ADD START jinho q1 ===*/
     int64_t wakeUpTick;
     struct list_elem sleep_elem;
     /* === ADD END jinho ===*/
@@ -145,12 +144,11 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-/* === ADD START jinho ===*/
-// TODO thread.c header ok
+/* === ADD START jinho q1 ===*/
 void thread_sleep(int64_t n);
 void thread_awake();
 bool compareThreadWakeUpTick(struct list_elem* e1, struct list_elem* e2, void* aux);
-/* === ADD END jinho ===*/
+/* === ADD END jinho q1 ===*/
 
 
 #endif /* threads/thread.h */

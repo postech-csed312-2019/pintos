@@ -13,7 +13,6 @@
 #include "threads/vaddr.h"
 
 /* === ADD START jinho q1 ===*/
-// TODO include timer.h ok
 #include "devices/timer.h"
 /* === ADD END jinho q1 ===*/
 
@@ -35,7 +34,6 @@ static struct list ready_list;
 static struct list all_list;
 
 /* === ADD START jinho q1 ===*/
-// TODO static sleep_list ok
 static struct list sleep_list;
 /* === ADD END jinho q1 ===*/
 
@@ -105,7 +103,6 @@ thread_init (void)
   list_init (&all_list);
 
     /* === ADD START jinho q1 ===*/
-    // TODO thread_init ok
     list_init( &sleep_list );
 
     /* === ADD END jinho q1 ===*/
@@ -338,7 +335,6 @@ thread_yield (void)
 
 // NOTE : is run by user thread
 void thread_sleep(int64_t ticks){
-    // TODO thread_sleep ok
     enum intr_level old_level;
     int64_t curTime = timer_ticks();
     struct thread* curThread = thread_current();
@@ -360,7 +356,6 @@ void thread_sleep(int64_t ticks){
 
 // NOTE : is run by kernel thread when interrupt is raised.
 void thread_awake() {
-    // TODO thread_awake ok
     int64_t curTime = timer_ticks();
     enum intr_level old_level;
     struct thread* targetThread;
@@ -384,7 +379,6 @@ void thread_awake() {
 }
 
 bool compareThreadWakeUpTick(struct list_elem* e1, struct list_elem* e2, void* aux){
-    // TODO compareThreadWakeUpTick ok
     struct thread *t1 = list_entry(e1, struct thread, sleep_elem);
     struct thread *t2 = list_entry(e2, struct thread, sleep_elem);
     ASSERT(t1 != NULL || t2 != NULL);
@@ -546,11 +540,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-    /* === ADD START jinho ===*/
-    // TODO init_thread ok
+    /* === ADD START jinho q1===*/
     t->wakeUpTick = 0;
 
-    /* === ADD END jinho ===*/
+    /* === ADD END jinho q1 ===*/
 
 
   old_level = intr_disable ();

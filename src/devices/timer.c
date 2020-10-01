@@ -98,7 +98,6 @@ timer_sleep (int64_t ticks)
 /* === DEL END Jinho q1 === */
 
     /* === ADD START jinho q1 ===*/
-    // TODO timer_sleep ok
     ASSERT (intr_get_level () == INTR_ON);
     thread_sleep(ticks);
     /* === ADD END jinho q1 ===*/
@@ -182,7 +181,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
     /* === ADD START jinho q1 ===*/
-    // TODO timer_interrupt ok
     thread_awake();
     /* === ADD END jinho q1 ===*/
 }
