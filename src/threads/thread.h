@@ -132,6 +132,8 @@ const char *thread_name (void);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
+
+
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
@@ -149,6 +151,10 @@ void thread_sleep(int64_t n);
 void thread_awake();
 bool compareThreadWakeUpTick(struct list_elem* e1, struct list_elem* e2, void* aux);
 /* === ADD END jinho q1 ===*/
+
+/* === ADD START jinho q2 ===*/
+bool compareThreadPriority(struct list_elem* e1, struct list_elem* e2, void* aux);
+/* === ADD END jinho q2 ===*/
 
 
 #endif /* threads/thread.h */

@@ -218,6 +218,21 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+/* === ADD START jinho q2 ===*/
+
+  // NOTE : if cur_priority < new_thread_priority, new thread would already
+  // have been at the front of queue. Thus we simply compare front/current
+  // and yield conditionally.
+
+  if( thread_current() != idle_thread) {
+    bool createdThreadIsPrioritized = t->priority > thread_current()->priority;
+    if( createdThreadIsPrioritized ){
+      thread_yield();
+    }
+  }
+
+/* === ADD END jinho q2 ===*/
+
   return tid;
 }
 
@@ -254,7 +269,16 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+
+  /* === DEL START Jinho q2 === */
+
+  //    list_push_back (&ready_list, &t->elem);
+  /* === DEL END Jinho q2 === */
+
+  /* === ADD START jinho q2 ===*/
+  list_insert_ordered (&ready_list, &t->elem, &compareThreadPriority, NULL);
+  /* === ADD END jinho q2 ===*/
+
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -324,8 +348,20 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    /* === DEL START Jinho q2 === */
+
+//    if (cur != idle_thread)
+//        list_push_back (&ready_list, &cur->elem);
+    /* === DEL END Jinho q2 === */
+
+    /* === ADD START jinho q2 ===*/
+
+    // case when thread is ready to run
+    if (cur != idle_thread) {
+      list_insert_ordered (&ready_list, &cur->elem, &compareThreadPriority, NULL);
+    }
+    /* === ADD END jinho q2 ===*/
+
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -360,7 +396,6 @@ void thread_awake() {
     enum intr_level old_level;
     struct thread* targetThread;
 
-    int a  =0;
     while( 1 ){
         //condition
         if( list_size(&sleep_list) == 0) { break; }
@@ -411,8 +446,46 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  /* === DEL START Jinho q2 === */
+
+  // thread_current ()->priority = new_priority;
+  /* === DEL END Jinho q2 === */
+
+  /* === ADD START jinho q2 ===*/
+  // NOTE : this functon is only called when it is on RUNNING state.
+  ASSERT( new_priority >= PRI_MIN && new_priority <= PRI_MAX );
+  ASSERT( thread_current()->status == THREAD_RUNNING);
+
   thread_current ()->priority = new_priority;
+
+  // NOTE : Priority Preemption
+  if( list_size(&ready_list) > 0 ){
+    int highestPriority = list_entry(list_begin (&ready_list), struct thread, elem)->priority;
+    struct thread* curThread = thread_current();
+    bool modifiedThreadIsNotPrioritized = highestPriority > curThread->priority;
+
+    if( modifiedThreadIsNotPrioritized ) {
+      thread_yield();
+    }
+
+  }
+  /* === ADD END jinho q2 ===*/
 }
+
+/* === ADD START jinho q2 ===*/
+
+bool compareThreadPriority(struct list_elem* e1, struct list_elem* e2, void* aux) {
+    // NOTE : the list entry is searched only from ready_list
+    struct thread *t1 = list_entry(e1, struct thread, elem);
+    struct thread *t2 = list_entry(e2, struct thread, elem);
+    ASSERT(t1 != NULL || t2 != NULL);
+
+    // Designed to align large element at first.
+    return t1->priority > t2->priority ;
+}
+/* === ADD END jinho q2 ===*/
+
+
 
 /* Returns the current thread's priority. */
 int
