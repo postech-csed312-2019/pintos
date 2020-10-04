@@ -234,11 +234,9 @@ lock_acquire (struct lock *lock)
   /* === DEL END Jinho q2-2 === */
 
   /* === ADD START jinho q2-2 ===*/
-  // TODO lock_acquire !
-
   struct thread* cur = thread_current();
   if ( lock->holder != NULL ){  // donation needed
-    //printf("%d will donate to get %p \n", cur->tid, lock); // todo
+
     cur->lock_acquiring = lock;
     if ( list_size( &(cur->donated_from) ) == 0) {
       cur->original_priority = cur->priority;
@@ -249,8 +247,6 @@ lock_acquire (struct lock *lock)
     donate_priority( cur, cur->priority );
   }
   sema_down (&lock->semaphore);
-
-  cur->lock_acquiring = NULL;
   lock->holder = thread_current();
   /* === ADD END jinho q2-2 ===*/
 }
@@ -292,28 +288,23 @@ lock_release (struct lock *lock)
   /* === DEL END jinho q2-2 === */
 
   /* === ADD START jinho q2-2 ===*/
-  // TODO lock_release !
-  //printf("th-%d listsize %d\n", lock->holder->tid, list_size( &(lock->holder->donated_from) ) ); // todo
-
   bool isReturnRequired = false;
   struct list_elem *e;
   struct thread *t;
   for (e = list_begin (&thread_current()->donated_from);
         e != list_end (&thread_current()->donated_from) ; e = list_next (e) ) {
     t = list_entry (e, struct thread, donated_to_elem);
+
     if( t->lock_acquiring == lock) {
       isReturnRequired = true; break;
     }
   }
-
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 
   if ( isReturnRequired ) {
     return_priority( lock );
-    //printf("return success!\n"); // todo
   }
-
   /* === ADD END jinho q2-2 ===*/
 }
 

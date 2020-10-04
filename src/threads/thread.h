@@ -6,7 +6,6 @@
 #include <stdint.h>
 
 /* === ADD START jinho q2-2 ===*/
-// TODO add synch header ok
 #include "threads/synch.h"
 /* === ADD END jinho q2-2 ===*/
 
@@ -104,7 +103,6 @@ struct thread
     /* === ADD END jinho ===*/
 
     /* === ADD START jinho q2-2 ===*/
-    // TODO struct thread ok
     // NOTE : original_priority value is designed only to be valid
     //        whenever it is being donated a priority
     int original_priority;
@@ -160,14 +158,12 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 void thread_set_priority (int);
 /* === ADD START jinho q2-2 ===*/
-// TODO header ok
 void thread_set_priority_inner( struct thread* curThread, int new_priority,
         bool isPreemptRequired, bool isCalledByDonation );
 /* === ADD END jinho q2-2 ===*/
 
 
 /* === ADD START jinho q2-2 ===*/
-// TODO header ok
 void donate_priority(struct thread* cur, int priority);
 void return_priority();
 /* === ADD END jinho q2-2 ===*/

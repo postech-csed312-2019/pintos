@@ -373,8 +373,8 @@ void thread_sleep(int64_t ticks){
     struct thread* curThread = thread_current();
 
     // handle invariants
-    if(ticks==0) return;
-    ASSERT( ticks != 0 );
+    if( ticks <= 0 ) return;
+    ASSERT( ticks > 0 );
 
     curThread->wakeUpTick = curTime + ticks;
     ASSERT( curThread->wakeUpTick - ticks == curTime );
@@ -467,29 +467,38 @@ thread_set_priority (int new_priority)
   /* === ADD END jinho q2 ===*/
 
   /* === ADD START jinho q2-2 === */
-  // TODO thread_set_priority !
+  //  // NOTE : this function is only called when it is on RUNNING state.
+  ASSERT( new_priority >= PRI_MIN && new_priority <= PRI_MAX );
+  ASSERT( thread_current()->status == THREAD_RUNNING );
   // isPreemptRequired=true, isCalledByDonation=false
   thread_set_priority_inner( thread_current(), new_priority, true, false);
   /* === ADD END jinho q2 ===*/
 }
 
 /* === ADD START jinho q2-2 ===*/
-// TODO thread_set_priority_inner !
 void thread_set_priority_inner (struct thread* t, int new_priority,
         bool isPreemptRequired, bool isCalledByDonation ) {
 
-  // NOTE : this function is the inner function // todo
+  // NOTE : this function is the inner function of thread_set_priority(),
+  //        designed to handle various priority settings.
+
   ASSERT(new_priority >= PRI_MIN && new_priority <= PRI_MAX);
 
-  bool isLazyOperation = (list_size(&t->donated_from) > 0) && (t->priority > new_priority);
+  // NOTE : the set_priority operation can be lazy, that is,
+  //        we set new_priority to original_priority, but not changing
+  //        current priority. This should be considered since the attempt
+  //        to change priority whenever thread is donated should be banned.
+  bool isLazyOperation = (list_size(&t->donated_from) > 0)
+          && (t->priority > new_priority);
 
-  //printf("%d set called ; %d %d %d %d\n", t->tid, list_size(&t->donated_from), t->priority, t->original_priority, new_priority ); // todo
   if ( !isCalledByDonation && isLazyOperation ) {
-    //printf("indirectly set priority\n"); // todo
     t->original_priority = new_priority;
   } else {
-    //printf("directly set priority\n"); // todo
     t->priority = new_priority;
+    // NOTE : if original priority is larger, if should be updated as well.
+    if( t->original_priority > new_priority ){
+      t->original_priority = new_priority;
+    }
   }
 
   // NOTE : Priority Preemption
@@ -508,7 +517,6 @@ void thread_set_priority_inner (struct thread* t, int new_priority,
 
 
 /* === ADD START jinho q2 ===*/
-
 bool compareThreadPriority(struct list_elem* e1, struct list_elem* e2, void* aux) {
     // NOTE : the list entry is searched only from ready_list
     struct thread *t1 = list_entry(e1, struct thread, elem);
@@ -524,46 +532,34 @@ bool compareThreadPriority(struct list_elem* e1, struct list_elem* e2, void* aux
 int
 thread_get_priority (void) 
 {
-  /* === DEL START jinho q2-2 ===*/
-  // TODO thread_get_priority
   return thread_current ()->priority;
-  /* === DEL END jinho q2-2 ===*/
-
-  /* === ADD START jinho q2-2 ===*/
-  // TODO thread_get_priority 2
-
-//  if ( list_size( &thread_current()->donated_from )==0 ) {
-//    return thread_current ()->priority;
-//  }else {
-//    return list_entry(list_begin (&thread_current()->donated_from),
-//                      struct thread, donated_to_elem)->priority;
-//  }
-  /* === ADD END jinho q2-2 ===*/
 }
 
 /* === ADD START jinho q2-2 ===*/
-// TODO donate_priority !
 void donate_priority (struct thread* cur, int priorityToDonate) {
 
-  // NOTE :  'while' statement below should run at least once.
-  //printf("donating from %d:%d to %d:%d\n", cur->tid, cur->priority, cur->lock_acquiring->holder->tid, cur->lock_acquiring->holder->priority); // todo
+  // NOTE : 'while' statement below should run at least once.
+  //        We set priority recursively alongside the acquire chain,
+  //        in order to handle nested donation case.
   ASSERT( cur->lock_acquiring != NULL );
+
   while( cur->lock_acquiring != NULL ){
     ASSERT( cur->lock_acquiring->holder != NULL );
     cur = cur->lock_acquiring->holder;
-    //printf("set %d priority lazily from %d to %d \n", cur->tid, cur->priority, priorityToDonate); // todo
     // isPreemptRequired=false, isCalledByDonation=true
-    thread_set_priority_inner(cur, priorityToDonate, false, true);
+    thread_set_priority_inner(cur, priorityToDonate, true, true);
   }
 }
 
-// TODO return_priority !
 void return_priority (struct lock* lock) {
 
   struct thread* cur = thread_current();
-  //printf("listsize %d : %d \n", cur->tid,list_size( &(cur->donated_from) )); // todo
 
-  // NOTE : 우선 릴리즈하고자 하는 락과 같은 것들을 다 제거 todo
+  // NOTE : first, all elements(threads) that acquires the same lock as the front item
+  //        of donated_from list are removed. This is because, only single donation with
+  //        highest priority is effective in real. Thus in return stage, we ignore
+  //        all meaningless donations.
+
   struct list_elem *e;
   struct list_elem *e1;
   for (e = list_begin (&cur->donated_from); e != list_end (&cur->donated_from); ) {
@@ -579,7 +575,6 @@ void return_priority (struct lock* lock) {
           list_size( &(cur->donated_from) ) == 0;
 
   if( isSingleDonationCase ) {
-    //printf("singlecase ; %s return from %d to %d\n", cur->name, cur->priority, cur->original_priority); // todo
     // isPreemptRequired=true, isCalledByDonation=true
     thread_set_priority_inner( cur, cur->original_priority, true, true );
   }
@@ -587,7 +582,6 @@ void return_priority (struct lock* lock) {
     int nextPriority = list_entry( list_front(&(cur->donated_from)),
                                  struct thread, donated_to_elem)->priority;
     ASSERT( cur->priority >= nextPriority );
-    //printf("multicase ; %d return from %d to %d\n", cur->tid, cur->priority, nextPriority); // todo
     // isPreemptRequired=true, isCalledByDonation=true
     thread_set_priority_inner( cur, nextPriority, true, true );
   }
@@ -720,7 +714,6 @@ init_thread (struct thread *t, const char *name, int priority)
   /* === ADD END jinho q1 ===*/
 
   /* === ADD START jinho q2-2 ===*/
-  // TODO init_thread ok
   t->original_priority = t->priority;
   t->lock_acquiring = NULL;
   list_init ( &(t->donated_from) );
