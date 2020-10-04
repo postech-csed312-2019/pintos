@@ -5,6 +5,11 @@
 #include <list.h>
 #include <stdint.h>
 
+/* === ADD START jinho q2-2 ===*/
+// TODO add synch header ok
+#include "threads/synch.h"
+/* === ADD END jinho q2-2 ===*/
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -98,6 +103,20 @@ struct thread
     struct list_elem sleep_elem;
     /* === ADD END jinho ===*/
 
+    /* === ADD START jinho q2-2 ===*/
+    // TODO struct thread ok
+    // NOTE : original_priority value is designed only to be valid
+    //        whenever it is being donated a priority
+    int original_priority;
+    struct lock* lock_acquiring;
+    // NOTE : list donated_from stores the records of from which thread
+    //        the thread got donated. donated_to_elem is used for storing
+    // NOTE:  donated_to_elem should always be in a single donated_from
+    //        list, since the thread can wait for at most 1 lock.
+    struct list donated_from;
+    struct list_elem donated_to_elem;
+    /* === ADD END jinho q2-2 ===*/
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -140,6 +159,18 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+/* === ADD START jinho q2-2 ===*/
+// TODO header ok
+void thread_set_priority_inner( struct thread* curThread, int new_priority,
+        bool isPreemptRequired, bool isCalledByDonation );
+/* === ADD END jinho q2-2 ===*/
+
+
+/* === ADD START jinho q2-2 ===*/
+// TODO header ok
+void donate_priority(struct thread* cur, int priority);
+void return_priority();
+/* === ADD END jinho q2-2 ===*/
 
 int thread_get_nice (void);
 void thread_set_nice (int);

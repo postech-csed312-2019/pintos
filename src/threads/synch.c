@@ -228,8 +228,31 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  /* === DEL START Jinho q2-2 === */
+//  sema_down (&lock->semaphore);
+//  lock->holder = thread_current ();
+  /* === DEL END Jinho q2-2 === */
+
+  /* === ADD START jinho q2-2 ===*/
+  // TODO lock_acquire !
+
+  struct thread* cur = thread_current();
+  if ( lock->holder != NULL ){  // donation needed
+    //printf("%d will donate to get %p \n", cur->tid, lock); // todo
+    cur->lock_acquiring = lock;
+    if ( list_size( &(cur->donated_from) ) == 0) {
+      cur->original_priority = cur->priority;
+    }
+    list_insert_ordered( &(lock->holder->donated_from), &(cur->donated_to_elem),
+      &compareThreadPriority, NULL); // to handle multiple donation
+
+    donate_priority( cur, cur->priority );
+  }
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+
+  cur->lock_acquiring = NULL;
+  lock->holder = thread_current();
+  /* === ADD END jinho q2-2 ===*/
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -263,8 +286,35 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  /* === DEL START jinho q2-2 === */
+//  lock->holder = NULL;
+//  sema_up (&lock->semaphore);
+  /* === DEL END jinho q2-2 === */
+
+  /* === ADD START jinho q2-2 ===*/
+  // TODO lock_release !
+  //printf("th-%d listsize %d\n", lock->holder->tid, list_size( &(lock->holder->donated_from) ) ); // todo
+
+  bool isReturnRequired = false;
+  struct list_elem *e;
+  struct thread *t;
+  for (e = list_begin (&thread_current()->donated_from);
+        e != list_end (&thread_current()->donated_from) ; e = list_next (e) ) {
+    t = list_entry (e, struct thread, donated_to_elem);
+    if( t->lock_acquiring == lock) {
+      isReturnRequired = true; break;
+    }
+  }
+
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+
+  if ( isReturnRequired ) {
+    return_priority( lock );
+    //printf("return success!\n"); // todo
+  }
+
+  /* === ADD END jinho q2-2 ===*/
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -277,7 +327,8 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
-
+
+
 /* One semaphore in a list. */
 struct semaphore_elem 
   {
