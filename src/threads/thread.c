@@ -595,6 +595,11 @@ void
 thread_set_nice (int nice UNUSED) 
 {
   /* Not yet implemented. */
+  /* === ADD START jihun q3 ===*/
+  // TODO thread_set_nice
+  //blabla;
+  /* === ADD START jihun q3 ===*/
+
 }
 
 /* Returns the current thread's nice value. */
@@ -602,6 +607,10 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
+  /* === ADD START jihun q3 ===*/
+  // TODO thread_get_nice
+  //blabla;
+  /* === ADD START jihun q3 ===*/
   return 0;
 }
 
