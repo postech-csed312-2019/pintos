@@ -547,7 +547,7 @@ void donate_priority (struct thread* cur, int priorityToDonate) {
     ASSERT( cur->lock_acquiring->holder != NULL );
     cur = cur->lock_acquiring->holder;
     // isPreemptRequired=false, isCalledByDonation=true
-    thread_set_priority_inner(cur, priorityToDonate, true, true);
+    thread_set_priority_inner(cur, priorityToDonate, false, true);
   }
 }
 
