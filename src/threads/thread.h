@@ -92,6 +92,12 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    /* === ADD START jihun q3 ===*/
+    // NOTE : nice and recent_cpu is already multiplied by 100
+    //        to handle real-number
+    int nice;
+    int recent_cpu;
+    /* === ADD END jihun ===*/
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
