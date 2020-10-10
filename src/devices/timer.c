@@ -173,16 +173,32 @@ timer_print_stats (void)
 {
   printf ("Timer: %lld ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-    /* === ADD START jinho q1 ===*/
-    thread_awake();
-    /* === ADD END jinho q1 ===*/
+
+  /* === ADD START jihun q3 ===*/
+  // NOTE : check if advanced scheduler works
+  if (thread_mlfqs)
+  {
+    // NOTE : recent_cpu of running thread is incremented by 1 on every tick
+    thread_increment_recent_cpu();
+    // NOTE : recalculate priority of all threads on every second
+    if (ticks % 100 == 0)
+      thread_recalculate_every_threads();
+    // NOTE : recalculate priority of running thread on every 4 ticks
+    else if (ticks % 4 == 0)
+      thread_calculate_mlfqs_priority(thread_current());
+  }
+  /* === ADD END jihun q3 ===*/
+
+  /* === ADD START jinho q1 ===*/
+  thread_awake();
+  /* === ADD END jinho q1 ===*/
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

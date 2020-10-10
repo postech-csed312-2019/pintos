@@ -82,7 +82,6 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 bool thread_mlfqs;
 
 /* === ADD START jihun q3 ===*/
-// TODO prototypes
 void thread_calculate_mlfqs_priority (struct thread *t);
 void thread_calculate_recent_cpu (struct thread *t);
 int thread_calculate_ready_threads (void);
@@ -489,6 +488,12 @@ thread_set_priority (int new_priority)
 //  }
   /* === ADD END jinho q2 ===*/
 
+  /* === ADD START jihun q3 ===*/
+  // NOTE : When advanced scheduler works, priority cannot be changed to the appointment.
+  if (thread_mlfqs)
+    return;
+  /* === ADD END jihun q3 ===*/
+
   /* === ADD START jinho q2-2 === */
   //  // NOTE : this function is only called when it is on RUNNING state.
   ASSERT( new_priority >= PRI_MIN && new_priority <= PRI_MAX );
@@ -585,13 +590,12 @@ void return_priority (struct lock* lock) {
 
   struct list_elem *e;
   struct list_elem *e1;
-  for (e = list_begin (&cur->donated_from); e != list_end (&cur->donated_from); ) {
+  for (e = list_begin (&cur->donated_from); e != list_end (&cur->donated_from); e = e1) {
     e1 = list_next (e);
     struct thread *t = list_entry (e, struct thread, donated_to_elem);
     if( t->lock_acquiring == lock) {
       list_remove(e);
     }
-    e = e1;
   }
 
   bool isSingleDonationCase =
@@ -613,7 +617,6 @@ void return_priority (struct lock* lock) {
 /* === ADD END jinho q2-2 ===*/
 
 /* === ADD START jihun q3 ===*/
-// TODO mlfqs functions
 void thread_calculate_mlfqs_priority (struct thread *t)
 {
   // NOTE : Calculates priority used in advanced scheduler.
@@ -624,7 +627,7 @@ void thread_calculate_mlfqs_priority (struct thread *t)
     // priority = PRI_MAX
   mlfqs_priority = X_MINUS_Y( mlfqs_priority, X_OVER_N( N_TO_FP(t->recent_cpu), 400 ) );
     // priority = PRI_MAX - (recent_cpu / 4)
-  mlfqs_priority = X_MINUS_Y( mlfqs_priority, X_OVER_N( N_TO_FP(t->nice), 2 ) );
+  mlfqs_priority = X_MINUS_Y( mlfqs_priority, X_TIMES_N( N_TO_FP(t->nice), 2 ) );
     // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
 
   t->priority = X_TO_INT_TN(mlfqs_priority);
@@ -637,13 +640,13 @@ void thread_calculate_recent_cpu (struct thread *t)
     return;
 
   int old_recent_cpu = X_OVER_N( N_TO_FP(t->recent_cpu), 100);
-  int new_recent_cpu = X_TIMES_N( old_recent_cpu, 2 );
+  int new_recent_cpu = X_TIMES_N( X_OVER_N( N_TO_FP(load_avg), 100), 2 );
     // recent_cpu = 2*load_avg
   new_recent_cpu = X_OVER_Y( new_recent_cpu, X_PLUS_N(new_recent_cpu, 1) );
     // recent_cpu = (2*load_avg)/(2*load_avg + 1)
   new_recent_cpu = X_TIMES_Y(new_recent_cpu, old_recent_cpu);
     // recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu
-  new_recent_cpu = X_PLUS_Y( new_recent_cpu, N_TO_FP(t->nice) );
+  new_recent_cpu = X_PLUS_N( new_recent_cpu, t->nice );
     // recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
 
   t->recent_cpu = X_TO_INT_TN( X_TIMES_N(new_recent_cpu, 100) );
@@ -654,7 +657,7 @@ int thread_calculate_ready_threads (void)
   // NOTE : Calculates ready_threads used in thread_calculate_load_avg().
   int count = 0;
   struct list_elem *e;
-  for (e = list_begin (&all_list); e != list_end (&all_list); )
+  for (e = list_begin (&ready_list); e != list_end (&ready_list); e = list_next (e))
     count++;
   if(thread_current () != idle_thread)
     count++;
@@ -665,12 +668,38 @@ void thread_calculate_load_avg (void)
 {
   // NOTE : Calculates load_avg used in advanced scheduler.
   int old_load_avg = X_OVER_N( N_TO_FP(load_avg), 100 );
-  int new_load_avg = X_TIMES_Y((59/60), old_load_avg);
+  int num1 = X_OVER_Y( N_TO_FP(59), N_TO_FP(60) );
+  int new_load_avg = X_TIMES_Y(num1, old_load_avg);
     // load_avg = (59/60)*load_avg
-  new_load_avg = X_PLUS_Y( new_load_avg, X_TIMES_N((1/60), thread_calculate_ready_threads()) );
+  int num2 = X_OVER_Y( N_TO_FP(1), N_TO_FP(60) );
+  new_load_avg = X_PLUS_Y( new_load_avg, X_TIMES_N(num2, thread_calculate_ready_threads()) );
     // load_avg = (59/60)*load_avg + (1/60)*ready_threads
 
-  load_avg = new_load_avg;
+  load_avg = X_TO_INT_TN( X_TIMES_N(new_load_avg, 100) );
+  if (load_avg < 0)
+    load_avg = 0;
+}
+
+void thread_increment_recent_cpu(void)
+{
+  // NOTE : Increment recent_cpu by 1.
+  if (thread_current() == idle_thread)
+    return;
+
+  thread_current()->recent_cpu += 100;
+}
+
+void thread_recalculate_every_threads(void)
+{
+  // NOTE : Recalculate recent_cpu and priority of every threads and load_avg.
+  struct list_elem *e;
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
+  {
+    struct thread *t = list_entry (e, struct thread, allelem);
+    thread_calculate_recent_cpu(t);
+    thread_calculate_mlfqs_priority(t);
+  }
+  thread_calculate_load_avg();
 }
 /* === ADD END jihun ===*/
 

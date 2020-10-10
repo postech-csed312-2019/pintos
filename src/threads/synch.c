@@ -235,17 +235,28 @@ lock_acquire (struct lock *lock)
 
   /* === ADD START jinho q2-2 ===*/
   struct thread* cur = thread_current();
-  if ( lock->holder != NULL ){  // donation needed
 
-    cur->lock_acquiring = lock;
-    if ( list_size( &(cur->donated_from) ) == 0) {
-      cur->original_priority = cur->priority;
+  /* === ADD START jihun q3 ===*/
+  // NOTE : Negate priority donation if advanced scheduler works
+  if (!thread_mlfqs) {
+    /* === ADD END jihun q3 ===*/
+
+    if (lock->holder != NULL) {  // donation needed
+
+      cur->lock_acquiring = lock;
+      if (list_size(&(cur->donated_from)) == 0) {
+        cur->original_priority = cur->priority;
+      }
+      list_insert_ordered(&(lock->holder->donated_from), &(cur->donated_to_elem),
+                          &compareThreadPriority, NULL); // to handle multiple donation
+
+      donate_priority(cur, cur->priority);
     }
-    list_insert_ordered( &(lock->holder->donated_from), &(cur->donated_to_elem),
-      &compareThreadPriority, NULL); // to handle multiple donation
 
-    donate_priority( cur, cur->priority );
+    /* === ADD START jihun q3 ===*/
   }
+  /* === ADD END jihun q3 ===*/
+
   sema_down (&lock->semaphore);
   lock->holder = thread_current();
   /* === ADD END jinho q2-2 ===*/
@@ -289,16 +300,28 @@ lock_release (struct lock *lock)
 
   /* === ADD START jinho q2-2 ===*/
   bool isReturnRequired = false;
-  struct list_elem *e;
-  struct thread *t;
-  for (e = list_begin (&thread_current()->donated_from);
-        e != list_end (&thread_current()->donated_from) ; e = list_next (e) ) {
-    t = list_entry (e, struct thread, donated_to_elem);
 
-    if( t->lock_acquiring == lock) {
-      isReturnRequired = true; break;
+  /* === ADD START jihun q3 ===*/
+  if (!thread_mlfqs) {
+    /* === ADD END jihun q3 ===*/
+
+    struct list_elem *e;
+    struct thread *t;
+    for (e = list_begin(&thread_current()->donated_from);
+         e != list_end(&thread_current()->donated_from); e = list_next(e)) {
+      t = list_entry(e,
+      struct thread, donated_to_elem);
+
+      if (t->lock_acquiring == lock) {
+        isReturnRequired = true;
+        break;
+      }
     }
+
+    /* === ADD START jihun q3 ===*/
   }
+  /* === ADD END jihun q3 ===*/
+
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 
