@@ -35,6 +35,7 @@
 #define RECENT_CPU_DEFAULT 0
 #define LOAD_AVG_DEFAULT 0
 
+// NOTE : load_avg is saved as fixed point number
 int load_avg;
 /* === ADD END jihun ===*/
 
@@ -614,56 +615,51 @@ void thread_calculate_mlfqs_priority (struct thread *t)
 
   int mlfqs_priority = N_TO_FP(PRI_MAX);
     // priority = PRI_MAX
-  mlfqs_priority = X_MINUS_Y( mlfqs_priority, X_OVER_N( N_TO_FP(t->recent_cpu), 400 ) );
+  mlfqs_priority = X_MINUS_Y( mlfqs_priority, X_OVER_N(t->recent_cpu, 4) );
     // priority = PRI_MAX - (recent_cpu / 4)
-  mlfqs_priority = X_MINUS_Y( mlfqs_priority, X_TIMES_N( N_TO_FP(t->nice), 2 ) );
+  mlfqs_priority = X_MINUS_N( mlfqs_priority, (t->nice)*2 );
     // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
 
   t->priority = X_TO_INT_TN(mlfqs_priority);
 }
 
 void thread_calculate_recent_cpu (struct thread *t)
-{ // TODO recent_cpu
+{
   // NOTE : Calculates recent_cpu used in advanced scheduler.
   if (t == idle_thread)
     return;
 
-  int new_recent_cpu = X_OVER_N( N_TO_FP(load_avg), 50 );
+  int new_recent_cpu = X_TIMES_N(load_avg, 2);
     // recent_cpu = 2*load_avg
   new_recent_cpu = X_OVER_Y( new_recent_cpu, X_PLUS_N(new_recent_cpu, 1) );
     // recent_cpu = (2*load_avg)/(2*load_avg + 1)
-  new_recent_cpu = X_TIMES_Y( new_recent_cpu, X_OVER_N( N_TO_FP(t->recent_cpu), 100) );
+  new_recent_cpu = X_TIMES_Y( new_recent_cpu, t->recent_cpu );
     // recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu
   new_recent_cpu = X_PLUS_N( new_recent_cpu, t->nice );
     // recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
 
-  t->recent_cpu = X_TO_INT_TN( X_TIMES_N(new_recent_cpu, 100) );
+  t->recent_cpu = new_recent_cpu;
 }
 
-int thread_calculate_ready_threads (void)
+void thread_calculate_load_avg (void)
 {
-  // NOTE : Calculates number of ready_threads used in thread_calculate_load_avg().
+  // NOTE : count alculates number of ready_threads
   int count = 0;
   struct list_elem *e;
   for (e = list_begin (&ready_list); e != list_end (&ready_list); e = list_next (e))
     count++;
   if(thread_current () != idle_thread)
     count++;
-  return count;
-}
 
-void thread_calculate_load_avg (void)
-{
   // NOTE : Calculates load_avg used in advanced scheduler.
-  int old_load_avg = X_OVER_N( N_TO_FP(load_avg), 100 );
   int num1 = X_OVER_Y( N_TO_FP(59), N_TO_FP(60) );
-  int new_load_avg = X_TIMES_Y(num1, old_load_avg);
+  int new_load_avg = X_TIMES_Y(num1, load_avg);
     // load_avg = (59/60)*load_avg
   int num2 = X_OVER_Y( N_TO_FP(1), N_TO_FP(60) );
-  new_load_avg = X_PLUS_Y( new_load_avg, X_TIMES_N(num2, thread_calculate_ready_threads()) );
+  new_load_avg = X_PLUS_Y( new_load_avg, X_TIMES_N(num2, count) );
     // load_avg = (59/60)*load_avg + (1/60)*ready_threads
 
-  load_avg = X_TO_INT_TN( X_TIMES_N(new_load_avg, 100) );
+  load_avg = new_load_avg;
   if (load_avg < 0)
     load_avg = 0;
 }
@@ -674,7 +670,7 @@ void thread_increment_recent_cpu(void)
   if (thread_current() == idle_thread)
     return;
 
-  thread_current()->recent_cpu += 100;
+  thread_current()->recent_cpu += N_TO_FP(1);
 }
 
 void thread_recalculate_every_threads(void)
@@ -698,6 +694,7 @@ thread_set_nice (int nice UNUSED)
 {
   /* === ADD START jihun q3 ===*/
   thread_current()->nice = nice;
+  thread_calculate_mlfqs_priority(thread_current());
   /* === ADD END jihun ===*/
 }
 
@@ -719,7 +716,7 @@ int
 thread_get_load_avg (void)
 {
   /* === ADD START jihun q3 ===*/
-  return load_avg;
+  return X_TO_INT_TN( X_TIMES_N(load_avg, 100) );
   /* === ADD END jihun ===*/
 
   /* === DEL START jihun q3 ===*/
@@ -732,7 +729,7 @@ int
 thread_get_recent_cpu (void)
 {
   /* === ADD START jihun q3 ===*/
-  return thread_current()->recent_cpu;
+  return X_TO_INT_TN( X_TIMES_N(thread_current()->recent_cpu, 100) );
   /* === ADD END jihun ===*/
 
   /* === DEL START jihun q3 ===*/

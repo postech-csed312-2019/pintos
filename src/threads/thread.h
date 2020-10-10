@@ -93,8 +93,7 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     /* === ADD START jihun q3 ===*/
-    // NOTE : nice and recent_cpu is already multiplied by 100
-    //        to handle real-number
+    // NOTE : recent_cpu is saved as fixed point number
     int nice;
     int recent_cpu;
     /* === ADD END jihun ===*/
@@ -182,7 +181,6 @@ int thread_get_load_avg (void);
 /* === ADD START jihun q3 ===*/
 void thread_calculate_mlfqs_priority (struct thread *t);
 void thread_calculate_recent_cpu (struct thread *t);
-int thread_calculate_ready_threads (void);
 void thread_calculate_load_avg (void);
 void thread_increment_recent_cpu(void);
 void thread_recalculate_every_threads(void);
