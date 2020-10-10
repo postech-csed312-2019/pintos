@@ -179,6 +179,15 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+/* === ADD START jihun q3 ===*/
+void thread_calculate_mlfqs_priority (struct thread *t);
+void thread_calculate_recent_cpu (struct thread *t);
+int thread_calculate_ready_threads (void);
+void thread_calculate_load_avg (void);
+void thread_increment_recent_cpu(void);
+void thread_recalculate_every_threads(void);
+/* === ADD END jihun q3 ===*/
+
 /* === ADD START jinho q1 ===*/
 void thread_sleep(int64_t n);
 void thread_awake();

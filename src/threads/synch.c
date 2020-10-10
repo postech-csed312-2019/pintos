@@ -302,6 +302,7 @@ lock_release (struct lock *lock)
   bool isReturnRequired = false;
 
   /* === ADD START jihun q3 ===*/
+  // NOTE : Negate priority donation if advanced scheduler works
   if (!thread_mlfqs) {
     /* === ADD END jihun q3 ===*/
 

@@ -81,17 +81,6 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
-/* === ADD START jihun q3 ===*/
-void thread_calculate_mlfqs_priority (struct thread *t);
-void thread_calculate_recent_cpu (struct thread *t);
-int thread_calculate_ready_threads (void);
-void thread_calculate_load_avg (void);
-void thread_set_nice (int nice UNUSED);
-int thread_get_nice (void);
-int thread_get_load_avg (void);
-int thread_get_recent_cpu (void);
-/* === ADD END jihun ===*/
-
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -634,17 +623,16 @@ void thread_calculate_mlfqs_priority (struct thread *t)
 }
 
 void thread_calculate_recent_cpu (struct thread *t)
-{
+{ // TODO recent_cpu
   // NOTE : Calculates recent_cpu used in advanced scheduler.
   if (t == idle_thread)
     return;
 
-  int old_recent_cpu = X_OVER_N( N_TO_FP(t->recent_cpu), 100);
-  int new_recent_cpu = X_TIMES_N( X_OVER_N( N_TO_FP(load_avg), 100), 2 );
+  int new_recent_cpu = X_OVER_N( N_TO_FP(load_avg), 50 );
     // recent_cpu = 2*load_avg
   new_recent_cpu = X_OVER_Y( new_recent_cpu, X_PLUS_N(new_recent_cpu, 1) );
     // recent_cpu = (2*load_avg)/(2*load_avg + 1)
-  new_recent_cpu = X_TIMES_Y(new_recent_cpu, old_recent_cpu);
+  new_recent_cpu = X_TIMES_Y( new_recent_cpu, X_OVER_N( N_TO_FP(t->recent_cpu), 100) );
     // recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu
   new_recent_cpu = X_PLUS_N( new_recent_cpu, t->nice );
     // recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
@@ -654,7 +642,7 @@ void thread_calculate_recent_cpu (struct thread *t)
 
 int thread_calculate_ready_threads (void)
 {
-  // NOTE : Calculates ready_threads used in thread_calculate_load_avg().
+  // NOTE : Calculates number of ready_threads used in thread_calculate_load_avg().
   int count = 0;
   struct list_elem *e;
   for (e = list_begin (&ready_list); e != list_end (&ready_list); e = list_next (e))
