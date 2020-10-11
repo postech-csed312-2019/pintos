@@ -5,6 +5,10 @@
 #include <list.h>
 #include <stdint.h>
 
+/* === ADD START jinho q2-2 ===*/
+#include "threads/synch.h"
+/* === ADD END jinho q2-2 ===*/
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -88,10 +92,34 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    /* === ADD START jihun q3 ===*/
+    // NOTE : recent_cpu is saved as fixed point number
+    int nice;
+    int recent_cpu;
+    /* === ADD END jihun ===*/
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    /* === ADD START jinho q1 ===*/
+    int64_t wakeUpTick;
+    struct list_elem sleep_elem;
+    /* === ADD END jinho ===*/
+
+    /* === ADD START jinho q2-2 ===*/
+    // NOTE : original_priority value is designed only to be valid
+    //        whenever it is being donated a priority
+    int original_priority;
+    struct lock* lock_acquiring;
+    // NOTE : list donated_from stores the records of from which thread
+    //        the thread got donated. donated_to_elem is used for storing
+    // NOTE:  donated_to_elem should always be in a single donated_from
+    //        list, since the thread can wait for at most 1 lock.
+    struct list donated_from;
+    struct list_elem donated_to_elem;
+    /* === ADD END jinho q2-2 ===*/
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -126,16 +154,47 @@ const char *thread_name (void);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
+
+
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+/* === ADD START jinho q2-2 ===*/
+void thread_set_priority_inner( struct thread* curThread, int new_priority,
+        bool isPreemptRequired, bool isCalledByDonation );
+/* === ADD END jinho q2-2 ===*/
+
+
+/* === ADD START jinho q2-2 ===*/
+void donate_priority(struct thread* cur, int priority);
+void return_priority();
+/* === ADD END jinho q2-2 ===*/
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/* === ADD START jihun q3 ===*/
+void thread_calculate_mlfqs_priority (struct thread *t);
+void thread_calculate_recent_cpu (struct thread *t);
+void thread_calculate_load_avg (void);
+void thread_increment_recent_cpu(void);
+void thread_recalculate_every_threads(void);
+/* === ADD END jihun q3 ===*/
+
+/* === ADD START jinho q1 ===*/
+void thread_sleep(int64_t n);
+void thread_awake();
+bool compareThreadWakeUpTick(struct list_elem* e1, struct list_elem* e2, void* aux);
+/* === ADD END jinho q1 ===*/
+
+/* === ADD START jinho q2 ===*/
+bool compareThreadPriority(struct list_elem* e1, struct list_elem* e2, void* aux);
+/* === ADD END jinho q2 ===*/
+
 
 #endif /* threads/thread.h */

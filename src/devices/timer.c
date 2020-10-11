@@ -89,11 +89,19 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
+/* === DEL START Jinho q1 === */
+//    int64_t start = timer_ticks ();
+//
+//    ASSERT (intr_get_level () == INTR_ON);
+//    while (timer_elapsed (start) < ticks)
+//        thread_yield ();
+/* === DEL END Jinho q1 === */
 
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+    /* === ADD START jinho q1 ===*/
+    ASSERT (intr_get_level () == INTR_ON);
+    thread_sleep(ticks);
+    /* === ADD END jinho q1 ===*/
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -163,15 +171,34 @@ timer_ndelay (int64_t ns)
 void
 timer_print_stats (void) 
 {
-  printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
+  printf ("Timer: %lld ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+
+  /* === ADD START jihun q3 ===*/
+  // NOTE : check if advanced scheduler works
+  if (thread_mlfqs)
+  {
+    // NOTE : recent_cpu of running thread is incremented by 1 on every tick
+    thread_increment_recent_cpu();
+    // NOTE : recalculate priority of running thread on every 4 ticks
+    if (ticks % 4 == 0)
+      thread_calculate_mlfqs_priority(thread_current());
+    // NOTE : recalculate priority of all threads on every second
+    if (ticks % 100 == 0)
+      thread_recalculate_every_threads();
+  }
+  /* === ADD END jihun q3 ===*/
+
+  /* === ADD START jinho q1 ===*/
+  thread_awake();
+  /* === ADD END jinho q1 ===*/
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
