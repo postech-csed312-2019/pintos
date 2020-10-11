@@ -4,7 +4,7 @@ src/lib/user/
 src/tests/
 src/examples/
 src/misc/
-src/utils/
+src/utils/*
 
 .idea/
 .DS_Store
