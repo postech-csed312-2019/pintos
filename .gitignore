@@ -5,3 +5,8 @@ src/tests/
 src/examples/
 src/misc/
 src/utils/
+
+.idea/
+.DS_Store
+./DS_Store
+

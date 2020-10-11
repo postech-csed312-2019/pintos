@@ -68,12 +68,19 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      /* === DEL START Jinho q2 === */
+      // list_push_back (&sema->waiters, &thread_current ()->elem);
+      /* === DEL END Jinho q2 === */
+
+      /* === ADD START jinho q2 ===*/
+      list_insert_ordered( &sema->waiters, &thread_current ()->elem, &compareThreadPriority, NULL);
+      /* === ADD END jinho q2 ===*/
       thread_block ();
     }
   sema->value--;
   intr_set_level (old_level);
 }
+
 
 /* Down or "P" operation on a semaphore, but only if the
    semaphore is not already 0.  Returns true if the semaphore is
@@ -113,10 +120,35 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+
+  /* === DEL START Jinho q2 === */
+//  if (!list_empty (&sema->waiters))
+//    thread_unblock (list_entry (list_pop_front (&sema->waiters),
+//  struct thread, elem));
+  /* === DEL END Jinho q2 === */
+
+  /* === ADD START jinho q2 ===*/
+  struct thread* threadToUnblock = NULL;
+  if (!list_empty (&sema->waiters)) {
+    list_sort( &sema->waiters, &compareThreadPriority, NULL);
+    threadToUnblock = list_entry (list_pop_front (&sema->waiters),
+                        struct thread, elem);
+    thread_unblock ( threadToUnblock );
+  }
+  /* === ADD END jinho q2 ===*/
+
   sema->value++;
+
+  /* === ADD START jinho q2 ===*/
+
+  if( threadToUnblock != NULL ) {
+    bool priorityPreemptionRequired = threadToUnblock->priority > thread_current()->priority;
+    if (priorityPreemptionRequired) {
+      thread_yield();
+    }
+  }
+  /* === ADD END jinho q2 ===*/
+
   intr_set_level (old_level);
 }
 
@@ -196,8 +228,38 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  /* === DEL START Jinho q2-2 === */
+//  sema_down (&lock->semaphore);
+//  lock->holder = thread_current ();
+  /* === DEL END Jinho q2-2 === */
+
+  /* === ADD START jinho q2-2 ===*/
+  struct thread* cur = thread_current();
+
+  /* === ADD START jihun q3 ===*/
+  // NOTE : Negate priority donation if advanced scheduler works
+  if (!thread_mlfqs) {
+    /* === ADD END jihun q3 ===*/
+
+    if (lock->holder != NULL) {  // donation needed
+
+      cur->lock_acquiring = lock;
+      if (list_size(&(cur->donated_from)) == 0) {
+        cur->original_priority = cur->priority;
+      }
+      list_insert_ordered(&(lock->holder->donated_from), &(cur->donated_to_elem),
+                          &compareThreadPriority, NULL); // to handle multiple donation
+
+      donate_priority(cur, cur->priority);
+    }
+
+    /* === ADD START jihun q3 ===*/
+  }
+  /* === ADD END jihun q3 ===*/
+
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+  lock->holder = thread_current();
+  /* === ADD END jinho q2-2 ===*/
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -231,8 +293,43 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  /* === DEL START jinho q2-2 === */
+//  lock->holder = NULL;
+//  sema_up (&lock->semaphore);
+  /* === DEL END jinho q2-2 === */
+
+  /* === ADD START jinho q2-2 ===*/
+  bool isReturnRequired = false;
+
+  /* === ADD START jihun q3 ===*/
+  // NOTE : Negate priority donation if advanced scheduler works
+  if (!thread_mlfqs) {
+    /* === ADD END jihun q3 ===*/
+
+    struct list_elem *e;
+    struct thread *t;
+    for (e = list_begin(&thread_current()->donated_from);
+         e != list_end(&thread_current()->donated_from); e = list_next(e)) {
+      t = list_entry(e,
+      struct thread, donated_to_elem);
+
+      if (t->lock_acquiring == lock) {
+        isReturnRequired = true;
+        break;
+      }
+    }
+
+    /* === ADD START jihun q3 ===*/
+  }
+  /* === ADD END jihun q3 ===*/
+
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+
+  if ( isReturnRequired ) {
+    return_priority( lock );
+  }
+  /* === ADD END jinho q2-2 ===*/
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -245,7 +342,8 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
-
+
+
 /* One semaphore in a list. */
 struct semaphore_elem 
   {
@@ -295,11 +393,35 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
+
+  /* === DEL START Jinho q2 === */
+  // list_push_back (&cond->waiters, &waiter.elem);
+  /* === DEL END Jinho q2 === */
+
+  /* === ADD START jinho q2 ===*/
+  list_insert_ordered( &cond->waiters, &waiter.elem, &compareSemaPriority, NULL);
+  /* === ADD END jinho q2 ===*/
+
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
 }
+
+/* === ADD START jinho q2 ===*/
+
+#define GETCONDVARTHREAD(s) ( list_entry(list_begin(&(s->semaphore.waiters)), struct thread, elem ) )
+  bool compareSemaPriority(struct list_elem* e1, struct list_elem* e2, void* aux){
+    // NOTE : only used when comparing condvar
+    struct semaphore_elem *s1 = list_entry(e1, struct semaphore_elem, elem);
+    struct semaphore_elem *s2 = list_entry(e2, struct semaphore_elem, elem);
+    ASSERT(s1 != NULL || s2 != NULL);
+
+    // Designed to align large element at first.
+    return GETCONDVARTHREAD(s1)->priority > GETCONDVARTHREAD(s2)->priority ;
+  }
+/* === ADD END jinho q2 ===*/
+
+
 
 /* If any threads are waiting on COND (protected by LOCK), then
    this function signals one of them to wake up from its wait.
@@ -316,9 +438,20 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
-    sema_up (&list_entry (list_pop_front (&cond->waiters),
-                          struct semaphore_elem, elem)->semaphore);
+  /* === DEL START Jinho q2 === */
+//  if (!list_empty (&cond->waiters))
+//    sema_up (&list_entry (list_pop_front (&cond->waiters),
+//  struct semaphore_elem, elem)->semaphore);
+  /* === DEL END Jinho q2 === */
+
+  /* === ADD START jinho q2 ===*/
+    if (!list_empty (&cond->waiters)){
+      list_sort( &cond->waiters, &compareSemaPriority, NULL);
+      sema_up (&list_entry (list_pop_front (&cond->waiters),
+      struct semaphore_elem, elem)->semaphore);
+    }
+  /* === ADD END jinho q2 ===*/
+
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by

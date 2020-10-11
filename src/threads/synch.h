@@ -41,6 +41,10 @@ void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 
+/* === ADD START jinho q2 ===*/
+bool compareSemaPriority(struct list_elem* e1, struct list_elem* e2, void* aux);
+/* === ADD END jinho q2 ===*/
+
 /* Optimization barrier.
 
    The compiler will not reorder operations across an
