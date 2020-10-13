@@ -244,8 +244,8 @@ lock_acquire (struct lock *lock)
     if (lock->holder != NULL) {  // donation needed
 
       cur->lock_acquiring = lock;
-      if (list_size(&(cur->donated_from)) == 0) {
-        cur->original_priority = cur->priority;
+      if (list_size(&(lock->holder->donated_from)) == 0) {
+        lock->holder->original_priority = lock->holder->priority;
       }
       list_insert_ordered(&(lock->holder->donated_from), &(cur->donated_to_elem),
                           &compareThreadPriority, NULL); // to handle multiple donation
