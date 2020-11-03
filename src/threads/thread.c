@@ -339,7 +339,13 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+
   intr_disable ();
+  /* === ADD START jinho p2q2 ===*/
+  struct thread* cur = thread_current();
+  cur->exit_done = true;
+  sema_up( cur->child_sema );
+  /* === ADD END jinho p2q2 ===*/
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -841,6 +847,21 @@ init_thread (struct thread *t, const char *name, int priority)
   t->nice = NICE_DEFAULT;
   t->recent_cpu = RECENT_CPU_DEFAULT;
   /* === ADD END jihun ===*/
+
+  /* === ADD START jinho p2q2 ===*/
+  t->ptid = thread_current()->tid;
+  list_push_back( &(thread_current()->children), &(t->child_elem) );
+
+  list_init( &(t->children) );
+
+  sema_init( &(t->child_sema), 0);
+  t->init_done = false;
+  t->init_status = NULL;
+  t->exit_done = false;
+  t->exit_status = NULL;
+  t->exit_status_returned = false;
+  /* === ADD END jinho p2q2 ===*/
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -909,7 +930,10 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread)
   {
     ASSERT (prev != cur);
-    palloc_free_page (prev);
+    /* === DEL START jinho p2q2 ===*/
+    //palloc_free_page (prev);
+    /* === DEL END jinho p2q2 ===*/
+
   }
 }
 

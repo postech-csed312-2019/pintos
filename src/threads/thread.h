@@ -120,6 +120,20 @@ struct thread
     struct list_elem donated_to_elem;
     /* === ADD END jinho q2-2 ===*/
 
+    /* === ADD START jinho p2q2 ===*/
+    tid_t ptid;                       /* Parent thread identifier. */
+
+    struct list children;
+    struct list_elem child_elem;
+    struct semaphore child_sema;           /* Sema used when syscall handles exec() or wait() in a synchronized manner */
+
+    bool init_done;
+    bool init_status;                 /* true if success, else false */
+    bool exit_done;
+    int exit_status;
+    bool exit_status_returned;
+    /* === ADD END jinho p2q2 ===*/
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

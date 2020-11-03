@@ -17,6 +17,10 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+/* === ADD START jinho p2q2 ===*/
+#include "userprog/syscall.h"
+/* === ADD END jinho p2q2 ===*/
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -61,10 +65,27 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+/* === DEL START jinho p2q2 ===*/
+//  /* If load failed, quit. */
+//  palloc_free_page (file_name);
+//  if (!success)
+//    thread_exit ();
+/* === DEL END jinho p2q2 ===*/
+
+/* === ADD START jinho p2q2 ===*/
   /* If load failed, quit. */
+  struct thread* cur = thread_current();
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success){
+    cur->init_status = false;
+    cur->init_done = true;
+    sema_up( cur->child_sema );
     thread_exit ();
+  }
+  cur->init_status = true;
+  cur->init_done = true;
+  sema_up( cur->child_sema );
+/* === ADD END jinho p2q2 ===*/
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -85,10 +106,34 @@ start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
+
+/* === DEL START jinho p2q2 ===*/
+//int
+//process_wait (tid_t child_tid UNUSED)
+//{
+//  return -1;
+  /* === DEL END jinho p2q2 ===*/
+
+  /* === ADD START jinho p2q2 ===*/
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid)
 {
-  return -1;
+  struct thread* cur = thread_current();
+  struct thread* child = getChildPointer(cur, child_tid);
+  ASSERT( child != NULL);
+
+  sema_down( child->child_sema );
+  ASSERT( child->exit_done == true );
+  ASSERT( child->exit_status != NULL );
+
+  list_remove( child->child_elem );
+  ASSERT( child->status == THREAD_DYING );
+  palloc_free_page(child);
+
+  child->exit_status_returned = true;
+  return child->exit_status;
+  /* === ADD END jinho p2q2 ===*/
+
 }
 
 /* Free the current process's resources. */
