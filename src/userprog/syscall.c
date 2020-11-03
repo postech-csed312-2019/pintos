@@ -39,6 +39,7 @@ static void close(int);
 // NOTE : helper functions (locally used)
 static bool isValidPointer(const void *);
 static void handleInvalidUserPointer(const void *);
+static struct file* getFilePointer(int);
 
 /* === ADD END jinho p2q2 ===*/
 
@@ -150,7 +151,7 @@ void exit(int status) {
 }
 
 void halt(void) {
-  shutdown_power_off ();
+  shutdown_power_off();
 }
 
 pid_t exec(const char *cmd_line) {
@@ -158,7 +159,7 @@ pid_t exec(const char *cmd_line) {
   struct thread* cur = thread_current();
   child_tid = process_execute(cmd_line);
   struct thread* child = getChildPointer(cur, child_tid);
-  ASSERT( child != NULL);
+  ASSERT( child != NULL );
 
   sema_down( child->child_sema );
   ASSERT( child->init_done == true );
@@ -199,31 +200,103 @@ bool remove(const char *file_name){
 }
 
 int open(const char *file_name){
+  int result = -1;
+  struct thread* cur = thread_current();
+  lock_acquire(&fs_lock);
 
+  struct file* f = filesys_open(file_name);
+  if( f != NULL ) {
+    cur->fd_table_pointer += 1;
+    cur->fd_table[ cur->fd_table_pointer ] = f;
+    result = cur->fd_table_pointer
+  }
+  lock_release(&fs_lock);
+  return result;
 }
 
 int filesize(int fd){
-
+  int result = -1;
+  lock_acquire(&fs_lock);
+  struct file* f = getFilePointer(fd);
+  if( f != NULL ) {
+    result = file_length(f);
+  }
+  lock_release(&fs_lock);
+  return result;
 }
 
 int read(int fd, void *buffer, unsigned size){
-
+  int result = -1;
+  lock_acquire(&fs_lock);
+  // case) accessing stdin
+  if( fd == FD_STDIN_NUM ){
+    unsigned count = size;
+    void *bufToInsert = buffer;
+    while( count-- ){
+      *(bufToInsert++) = input_getc();
+    }
+  }
+    // case) accessing file read
+  else {
+    struct file* f = getFilePointer(fd);
+    if( f != NULL ) {
+      result = file_write(f, buffer, size);
+    }
+  }
+  lock_release(&fs_lock);
+  return result;
 }
 
 int write(int fd, const void *buffer, unsigned size){
-
+  int result = -1;
+  lock_acquire(&fs_lock);
+  // case) accessing stdout
+  if( fd == FD_STDOUT_NUM ){
+    putbuf(buffer, size);
+    result = size;
+  }
+  // case) accessing file read
+  else {
+    struct file* f = getFilePointer(fd);
+    if( f != NULL ) {
+      result = file_read(f, buffer, size);
+    }
+  }
+  lock_release(&fs_lock);
+  return result;
 }
 
 void seek(int fd, unsigned position){
-
+  lock_acquire(&fs_lock);
+  struct file* f = getFilePointer(fd);
+  if( f != NULL ) {
+    file_seek(f, position);
+  }
+  lock_release(&fs_lock);
+  return;
 }
 
 unsigned tell(int fd){
-
+  int result = -1;
+  lock_acquire(&fs_lock);
+  struct file* f = getFilePointer(fd);
+  if( f != NULL ) {
+    result = file_tell(f);
+  }
+  lock_release(&fs_lock);
+  return result;
 }
 
 void close(int fd){
-
+  lock_acquire(&fs_lock);
+  struct thread* cur = thread_current();
+  struct file* f = getFilePointer(fd);
+  if( f != NULL ) {
+    file_close(f);
+    cur->fd_table[fd] = NULL;
+  }
+  lock_release(&fs_lock);
+  return;
 }
 
 /* === ADD END jinho p2q2 ===*/
@@ -268,7 +341,17 @@ struct thread* getChildPointer(struct thread* cur, tid_t child_tid){
     }
   }
   return out;
+}
 
+// NOTE : will return NULL if file is not opened or invalid, otherwise file*
+//        accessing FD 0, 1, 2 will also return NULL
+static struct file* getFilePointer(int fd){
+
+  struct thread* cur = thread_current();
+  if( fd < FD_IDX_START || fd > FD_SIZE ){ return NULL; }
+
+  struct file* f = cur->fd_table[fd];
+  return f;
 }
 
 /* === ADD END jinho p2q2 ===*/

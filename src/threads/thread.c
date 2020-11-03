@@ -862,6 +862,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->exit_status_returned = false;
   /* === ADD END jinho p2q2 ===*/
 
+  /* === ADD START jinho p2q2 ===*/
+  t->fd_table = { NULL };
+  t->fd_table_pointer = 2;
+  /* === ADD END jinho p2q2 ===*/
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

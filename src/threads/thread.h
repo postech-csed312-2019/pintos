@@ -28,6 +28,16 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* === ADD START jinho p2q2 ===*/
+#define FD_SIZE 256
+#define FD_IDX_START 3
+#define FD_STDIN_NUM 0
+#define FD_STDOUT_NUM 1
+#define FD_STDERR_NUM 2
+
+
+/* === ADD END jinho p2q2 ===*/
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -132,6 +142,11 @@ struct thread
     bool exit_done;
     int exit_status;
     bool exit_status_returned;
+    /* === ADD END jinho p2q2 ===*/
+
+    /* === ADD START jinho p2q2 ===*/
+    struct file* fd_table[FD_SIZE];
+    int fd_table_pointer;             /* where the last fd is stored ; initialized to 2 */
     /* === ADD END jinho p2q2 ===*/
 
 

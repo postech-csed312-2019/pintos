@@ -143,6 +143,15 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  /* === ADD START jinho p2q2 ===*/
+  int fd_it;
+  for( fd_it = cur->fd_table_pointer; fd_it >= FD_IDX_START; fd_it-- ){
+    // NOTE : file_close() can handle NULL or already closed file
+    file_close( cur->fd_table[fd_it] );
+  }
+  /* === ADD END jinho p2q2 ===*/
+
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
