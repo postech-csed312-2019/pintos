@@ -344,7 +344,7 @@ thread_exit (void)
   /* === ADD START jinho p2q2 ===*/
   struct thread* cur = thread_current();
   cur->exit_done = true;
-  sema_up( cur->child_sema );
+  sema_up( &(cur->child_sema) );
   /* === ADD END jinho p2q2 ===*/
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
@@ -863,7 +863,10 @@ init_thread (struct thread *t, const char *name, int priority)
   /* === ADD END jinho p2q2 ===*/
 
   /* === ADD START jinho p2q2 ===*/
-  t->fd_table = { NULL };
+  int i;
+  for(i=0; i<FD_SIZE; i++){
+    t->fd_table[i] = NULL;
+  }
   t->fd_table_pointer = 2;
   /* === ADD END jinho p2q2 ===*/
 

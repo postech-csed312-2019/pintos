@@ -143,34 +143,36 @@ syscall_handler (struct intr_frame *f)
 /* === ADD START jinho p2q2 ===*/
 
 // NOTE : Kernel function implementation.
-void exit(int status) {
+static void exit(int status) {
   struct thread* cur = thread_current();
   printf ("%s: exit(%d)\n", cur->name, status);
   cur->exit_status = status;
   thread_exit ();
 }
 
-void halt(void) {
+static void halt(void) {
   shutdown_power_off();
 }
 
-pid_t exec(const char *cmd_line) {
+static pid_t exec(const char *cmd_line) {
   tid_t child_tid;
   struct thread* cur = thread_current();
   child_tid = process_execute(cmd_line);
   struct thread* child = getChildPointer(cur, child_tid);
   ASSERT( child != NULL );
 
-  sema_down( child->child_sema );
+  sema_down( &(child->child_sema) );
   ASSERT( child->init_done == true );
 
   if( child->init_status == false ){
     return -1;
   }
+  // NOTE : the type of child_tid, tid_t is casted to pid_t
+  //        without any problem, since they have 1 to 1 mapping relation.
   return (pid_t) child_tid;
 }
 
-int wait(pid_t pid) {
+static int wait(pid_t pid) {
   tid_t child_tid = (tid_t) pid;
   struct thread* cur = thread_current();
   struct thread* child = getChildPointer(cur, child_tid);
@@ -183,7 +185,7 @@ int wait(pid_t pid) {
   return process_wait(pid);
 }
 
-bool create(const char *file_name, unsigned size){
+static bool create(const char *file_name, unsigned size){
   bool status;
   lock_acquire(&fs_lock);
   status = filesys_create(file_name, size);
@@ -191,7 +193,7 @@ bool create(const char *file_name, unsigned size){
   return status;
 }
 
-bool remove(const char *file_name){
+static bool remove(const char *file_name){
   bool status;
   lock_acquire(&fs_lock);
   status = filesys_remove(file_name);
@@ -199,7 +201,7 @@ bool remove(const char *file_name){
   return status;
 }
 
-int open(const char *file_name){
+static int open(const char *file_name){
   int result = -1;
   struct thread* cur = thread_current();
   lock_acquire(&fs_lock);
@@ -208,13 +210,13 @@ int open(const char *file_name){
   if( f != NULL ) {
     cur->fd_table_pointer += 1;
     cur->fd_table[ cur->fd_table_pointer ] = f;
-    result = cur->fd_table_pointer
+    result = cur->fd_table_pointer;
   }
   lock_release(&fs_lock);
   return result;
 }
 
-int filesize(int fd){
+static int filesize(int fd){
   int result = -1;
   lock_acquire(&fs_lock);
   struct file* f = getFilePointer(fd);
@@ -225,7 +227,7 @@ int filesize(int fd){
   return result;
 }
 
-int read(int fd, void *buffer, unsigned size){
+static int read(int fd, void *buffer, unsigned size){
   int result = -1;
   lock_acquire(&fs_lock);
   // case) accessing stdin
@@ -233,10 +235,10 @@ int read(int fd, void *buffer, unsigned size){
     unsigned count = size;
     void *bufToInsert = buffer;
     while( count-- ){
-      *(bufToInsert++) = input_getc();
+      *( (char*) bufToInsert++) = input_getc();
     }
   }
-    // case) accessing file read
+  // case) accessing file read
   else {
     struct file* f = getFilePointer(fd);
     if( f != NULL ) {
@@ -247,7 +249,7 @@ int read(int fd, void *buffer, unsigned size){
   return result;
 }
 
-int write(int fd, const void *buffer, unsigned size){
+static int write(int fd, const void *buffer, unsigned size){
   int result = -1;
   lock_acquire(&fs_lock);
   // case) accessing stdout
@@ -266,7 +268,7 @@ int write(int fd, const void *buffer, unsigned size){
   return result;
 }
 
-void seek(int fd, unsigned position){
+static void seek(int fd, unsigned position){
   lock_acquire(&fs_lock);
   struct file* f = getFilePointer(fd);
   if( f != NULL ) {
@@ -287,7 +289,7 @@ unsigned tell(int fd){
   return result;
 }
 
-void close(int fd){
+static void close(int fd){
   lock_acquire(&fs_lock);
   struct thread* cur = thread_current();
   struct file* f = getFilePointer(fd);
@@ -335,7 +337,7 @@ struct thread* getChildPointer(struct thread* cur, tid_t child_tid){
   for (e = list_begin (pChildList); e != list_end (pChildList);
        e = list_next (e))
   {
-    thr = list_entry (e, struct thread, list_elem);
+    thr = list_entry (e, struct thread, child_elem);
     if( thr->tid == child_tid ){
       out = thr; break;
     }

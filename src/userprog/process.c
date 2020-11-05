@@ -79,12 +79,12 @@ start_process (void *file_name_)
   if (!success){
     cur->init_status = false;
     cur->init_done = true;
-    sema_up( cur->child_sema );
+    sema_up( &(cur->child_sema) );
     thread_exit ();
   }
   cur->init_status = true;
   cur->init_done = true;
-  sema_up( cur->child_sema );
+  sema_up( &(cur->child_sema) );
 /* === ADD END jinho p2q2 ===*/
 
   /* Start the user process by simulating a return from an
@@ -122,11 +122,11 @@ process_wait (tid_t child_tid)
   struct thread* child = getChildPointer(cur, child_tid);
   ASSERT( child != NULL);
 
-  sema_down( child->child_sema );
+  sema_down( &(child->child_sema) );
   ASSERT( child->exit_done == true );
   ASSERT( child->exit_status != NULL );
 
-  list_remove( child->child_elem );
+  list_remove( &(child->child_elem) );
   ASSERT( child->status == THREAD_DYING );
   palloc_free_page(child);
 

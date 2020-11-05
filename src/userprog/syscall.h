@@ -1,6 +1,11 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
+/* === ADD START jinho p2q2 ===*/
+#include "threads/thread.h"
+typedef int pid_t;
+/* === ADD END jinho p2q2 ===*/
+
 void syscall_init (void);
 
 /* === ADD START jinho p2q2 ===*/
