@@ -18,6 +18,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+#define MAX_ARG_CNT 32
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 int tokenizer(char **argv, int max_cnt, char *str);
@@ -60,9 +62,9 @@ start_process (void *file_name_)
   bool success;
 
   int argc;
-  char *argv[32];
+  char *argv[MAX_ARG_CNT];
 
-  argc = tokenizer(argv, 32, file_name);
+  argc = tokenizer(argv, MAX_ARG_CNT, file_name);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -497,7 +499,7 @@ int tokenizer(char **argv, int max_cnt, char *str)
 
 void push_argument(char **argv, int argc, void **esp)
 {
-  void *argv_[32];
+  void *argv_[MAX_ARG_CNT];
 
   int i, len = 0;
 
