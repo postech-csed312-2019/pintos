@@ -20,6 +20,8 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+int tokenizer(char **argv, int max_cnt, char *str);
+void push_argument(char **argv, int argc, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -29,6 +31,7 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
+  char *real_file_name, *saveptr;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -38,8 +41,10 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  real_file_name = strtok_r(file_name, " ", &saveptr);  //problem with file_name because it's declared as "const"
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (real_file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -54,12 +59,20 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  int argc;
+  char *argv[32];
+
+  argc = tokenizer(argv, 32, file_name);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (argv[0], &if_.eip, &if_.esp);
+
+  if (success) push_argument(argv, argc, &if_.esp);
+  hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -462,4 +475,69 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+int tokenizer(char **argv, int max_cnt, char *str)
+{
+  if (max_cnt <= 0) return 0;
+
+  int cnt = 0;
+  char* saveptr;
+
+  argv[0] = strtok_r(str, " ", &saveptr);
+  while (argv[cnt] != NULL)
+  {
+    cnt++;
+    if (cnt == max_cnt) break;
+    argv[cnt] = strtok_r(NULL, " ", &saveptr);
+  }
+
+  return cnt;
+}
+
+void push_argument(char **argv, int argc, void **esp)
+{
+  void *argv_[32];
+
+  int i, len = 0;
+
+  // Push strings in argv
+  for (i = argc - 1; i >= 0; i--) {
+    len = strlen(argv[i]) + 1;
+    *esp = (char *)*esp - len;
+    memcpy(*esp, argv[i], len);
+    argv_[i] = *esp;
+  }
+
+  // Word alignment
+  while (((PHYS_BASE - *esp) % 4) != 0) {
+    *esp = (char *)*esp - 1;
+    *(uint8_t *)*esp = 0;
+  }
+
+  // Push addresses of argv[i]
+  for (i = argc; i >= 0; i--) {
+    *esp = (char *)*esp - 4;
+    if (i == argc) {
+      *(uint32_t *)*esp = 0;
+    }
+    else {
+      memcpy(*esp, &argv_[i], 4);
+    }
+  }
+
+  // Push address of argv
+  char* tmp = *esp;
+  *esp = (char *)*esp - 4;
+  memcpy(*esp, &tmp, 4);
+
+  // Push argc
+  *esp = (char *)*esp - 4;
+  *(int *)*esp = argc;
+
+  // Push fake return address
+  *esp = (char *)*esp - 4;
+  *(uint32_t *)*esp = 0;
+
+  return;
 }
